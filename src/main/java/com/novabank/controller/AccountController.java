@@ -9,6 +9,10 @@ import com.novabank.dto.DepositRequest;
 import com.novabank.dto.BalanceResponse;
 import com.novabank.dto.WithdrawRequest;
 import com.novabank.dto.WithdrawResponse;
+import com.novabank.dto.TransferRequest;
+import com.novabank.dto.TransferResponse;
+import com.novabank.dto.TransactionResponse;
+import java.util.List;
 @RestController
 @RequestMapping("/api/account")
 @RequiredArgsConstructor
@@ -27,5 +31,17 @@ public class AccountController {
     @PostMapping("/withdraw")
     public WithdrawResponse withdraw(@RequestBody WithdrawRequest request) {
         return accountService.withdraw(request);
+    }
+    @GetMapping("/balance/{accountNumber}")
+    public BalanceResponse getBalance(@PathVariable String accountNumber) {
+        return accountService.getBalance(accountNumber);
+    }
+    @PostMapping("/transfer")
+    public TransferResponse transfer(@RequestBody TransferRequest request) {
+        return accountService.transfer(request);
+    }
+    @GetMapping("/transactions/{accountNumber}")
+    public List<TransactionResponse> getTransactionHistory(@PathVariable String accountNumber) {
+        return accountService.getTransactionHistory(accountNumber);
     }
 }

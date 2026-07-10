@@ -18,6 +18,10 @@ import java.time.LocalDateTime;
 import java.util.Random;
 import com.novabank.dto.WithdrawRequest;
 import com.novabank.dto.WithdrawResponse;
+import com.novabank.dto.TransferRequest;
+import com.novabank.dto.TransferResponse;
+import java.util.List;
+import com.novabank.dto.TransactionResponse;
 @Service
 @RequiredArgsConstructor
 public class AccountService {
@@ -109,5 +113,79 @@ public class AccountService {
                 account.getBalance(),
                 "Amount withdrawn successfully"
         );
+    }
+    public BalanceResponse getBalance(String accountNumber) {
+
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+
+        return new BalanceResponse(
+                account.getAccountNumber(),
+                account.getBalance(),
+                "Balance fetched successfully"
+        );
+    }
+    public TransferResponse transfer(TransferRequest request) {
+
+        Account sender = accountRepository.findByAccountNumber(request.getFromAccountNumber())
+                .orElseThrow(() -> new RuntimeException("Sender account not found"));
+
+        Account receiver = accountRepository.findByAccountNumber(request.getToAccountNumber())
+                .orElseThrow(() -> new RuntimeException("Receiver account not found"));
+
+        if (sender.getBalance() < request.getAmount()) {
+            throw new RuntimeException("Insufficient balance");
+        }
+
+        sender.setBalance(sender.getBalance() - request.getAmount());
+        receiver.setBalance(receiver.getBalance() + request.getAmount());
+
+        accountRepository.save(sender);
+        accountRepository.save(receiver);
+
+        Transaction debitTransaction = new Transaction();
+        debitTransaction.setAmount(request.getAmount());
+        debitTransaction.setDescription("Money Transfer Sent");
+        debitTransaction.setBalanceAfterTransaction(sender.getBalance());
+        debitTransaction.setTransactionType(TransactionType.TRANSFER);
+        debitTransaction.setTransactionId("TXN" + System.currentTimeMillis());
+        debitTransaction.setTransactionDate(LocalDateTime.now());
+        debitTransaction.setAccount(sender);
+
+        Transaction creditTransaction = new Transaction();
+        creditTransaction.setAmount(request.getAmount());
+        creditTransaction.setDescription("Money Transfer Received");
+        creditTransaction.setBalanceAfterTransaction(receiver.getBalance());
+        creditTransaction.setTransactionType(TransactionType.TRANSFER);
+        creditTransaction.setTransactionId("TXN" + (System.currentTimeMillis() + 1));
+        creditTransaction.setTransactionDate(LocalDateTime.now());
+        creditTransaction.setAccount(receiver);
+        transactionRepository.save(debitTransaction);
+        transactionRepository.save(creditTransaction);
+
+        return new TransferResponse(
+                sender.getAccountNumber(),
+                receiver.getAccountNumber(),
+                request.getAmount(),
+                "Money transferred successfully"
+        );
+    }
+    public List<TransactionResponse> getTransactionHistory(String accountNumber) {
+
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+
+        List<Transaction> transactions = transactionRepository.findByAccount(account);
+
+        return transactions.stream()
+                .map(transaction -> new TransactionResponse(
+                        transaction.getTransactionId(),
+                        transaction.getTransactionType(),
+                        transaction.getAmount(),
+                        transaction.getBalanceAfterTransaction(),
+                        transaction.getDescription(),
+                        transaction.getTransactionDate()
+                ))
+                .toList();
     }
 }
